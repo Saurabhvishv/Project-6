@@ -18,12 +18,7 @@ const validObject = function (value) {
     return mongoose.Types.ObjectId.isValid(value)
 }
 
-function phoneCheck(str) {
-    if (/^(1\s|1|)?((\(\d{3}\))|\d{3})(\-|\s)?(\d{3})(\-|\s)?(\d{4})$/.test(str)) {
-        return true
-    }
-
-}
+const phonecheck = /^(\+91[\-\s]?)?[0]?(91)?[789]\d{9}$/
 
 const isValidPassword = function (value) {
     if (value.length > 7 && value.length < 16) { return true }
@@ -47,6 +42,17 @@ const registerUser = async function (req, res) {
         if (!isValid(lname)) {
             return res.status(400).send({ status: false, message: 'last name is not valid' })
 
+        }
+        
+        if (phone) {
+            if (!((phonecheck).test(phone))) {
+                return res.status(400).send({ status: false, Message: "Please provide valid phone number" })
+            }
+            const isPhoneAlreadyUsed = await UserModel.findOne({ phone });
+            if (isPhoneAlreadyUsed) {
+                res.status(400).send({ status: false, message: `${phone}  phone is already registered` })
+                return
+            }
         }
 
         if (!isValid(email)) {
