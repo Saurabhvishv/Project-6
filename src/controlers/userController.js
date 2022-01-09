@@ -2,186 +2,153 @@ const UserModel = require('../models/userModel.js')
 const jwt = require("jsonwebtoken")
 const bcrypt = require("bcryptjs")
 const mongoose = require("mongoose")
-
+const questionModel = require("../models/questionModel")
+const answerModel = require('../models/answerModel.js')
+const userModel = require("../models/userModel")
+const phonecheck = /^(\+91[\-\s]?)?[0]?(91)?[789]\d{9}$/
 
 const isValid = function (value) {
     if (typeof value === 'undefined' || value === null) return false
     if (typeof value === 'string' && value.trim().length === 0) return false
     return true;
 }
-
 const isValidRequestBody = function (requestBody) {
     return Object.keys(requestBody).length > 0
 }
-
 const validObject = function (value) {
     return mongoose.Types.ObjectId.isValid(value)
 }
-
-const phonecheck = /^(\+91[\-\s]?)?[0]?(91)?[789]\d{9}$/
-
 const isValidPassword = function (value) {
     if (value.length > 7 && value.length < 16) { return true }
 };
-
-
 
 //Create User
 const registerUser = async function (req, res) {
     try {
         const requestBody = req.body;
-
-        // Extract params
-        let { fname, lname,phone, email, password } = requestBody;
-
+        if (!isValidRequestBody(requestBody)) {
+            res.status(400).send({ status: false, message: 'Invalid request parameters. Please provide User details' })
+        }
+        let { fname, lname, phone, email, password, creditScore } = requestBody
         if (!isValid(fname)) {
-            return res.status(400).send({ status: false, message: 'first name is not valid' })
-
+            return res.status(400).send({ status: false, message: 'first name is required' })
         }
-
         if (!isValid(lname)) {
-            return res.status(400).send({ status: false, message: 'last name is not valid' })
-
+            return res.status(400).send({ status: false, message: 'last name is required' })
         }
-        
+        if (!isValid(email)) {
+            res.status(400).send({ status: false, message: 'email is required' })
+            return
+        }
+        const isEmailAlreadyUsed = await UserModel.findOne({ email });
+        if (isEmailAlreadyUsed) {
+            res.status(400).send({ status: false, message: `${email} mail is already registered` })
+            return
+        }
+        if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email.trim()))) {
+            res.status(400).send({ status: false, message: `Email should be a valid email address` })
+            return
+        }
         if (phone) {
             if (!((phonecheck).test(phone))) {
                 return res.status(400).send({ status: false, Message: "Please provide valid phone number" })
             }
             const isPhoneAlreadyUsed = await UserModel.findOne({ phone });
             if (isPhoneAlreadyUsed) {
-                res.status(400).send({ status: false, message: `${phone}  phone is already registered` })
+                res.status(400).send({ status: false, message: `${phone}  phone number is already registered` })
                 return
             }
         }
-
-        if (!isValid(email)) {
-            res.status(400).send({ status: false, message: 'email is required' })
-            return
-        }
-
         if (!isValid(password)) {
             res.status(400).send({ status: false, message: 'password is required' })
             return
         }
-
         if (!((password.length > 7) && (password.length < 16))) {
-
-            return res.status(400).send({ status: false, message: `Password length should be between 8 and 15.` })
-
+            res.status(400).send({ status: false, message: `Password length should be between 8 and 15.` })
+            return 
         }
-
-        const isEmailAlreadyUsed = await UserModel.findOne({ email });
-        if (isEmailAlreadyUsed) {
-            res.status(400).send({ status: false, message: `${email} mail is already registered` })
+        if (!isValid(creditScore)) {
+            res.status(400).send({ status: false, message: 'creditScore is not Zero and negative' })
             return
         }
-        if (!isValid(email)) {
-            res.status(400).send({ status: false, message: 'Invalid request parameters. Please provide valid email' })
-            return
+        if (creditScore < 0) {
+            return res.status(400).send({ status: false, message: 'creditScore is not zero and negative ' })
         }
-
-        if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email.trim()))) {
-            res.status(400).send({ status: false, message: `Email should be a valid email address` })
-            return
-        }
-        //const validphone =  await (/^\d{10}$/.test(phone))
-       
         const EncrypPassword = await bcrypt.hash(password, 10)
-        // console.log(EncrypPassword)
-        const userData = { fname, lname, phone, email, password: EncrypPassword }
+        const userData = { fname, lname, phone, email, password: EncrypPassword , creditScore}
         const newUser = await UserModel.create(userData);
 
         res.status(201).send({ status: true, message: `user created successfully`, data: newUser });
     } catch (err) {
         res.status(500).send({ status: false, message: err.message })
-
     }
 }
 
 //login User
-
 const login = async function (req, res) {
     try {
-
         const requestBody = req.body
-        if (!isValidRequestBody(requestBody)) {
-            res.status(400).send({ status: false, message: 'value in request body is required' })
-            return
-        }
-
         let email = req.body.email
         let password = req.body.password
-
-        if (!isValid(email)) {
-            res.status(400).send({ status: false, message: 'Invalid request parameters. Please provide valid email' })
+        if (!isValidRequestBody(requestBody)) {
+            res.status(400).send({ status: false, message: 'Invalid request parameters. Please provide User details' })
             return
         }
-        //  email = email.trim();
-
+        if (!isValid(email)) {
+            res.status(400).send({ status: false, message: 'email is required' })
+            return
+        }
         if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email))) {
             res.status(400).send({ status: false, message: `Email should be a valid email address` })
             return
         }
-
         if (!isValid(password)) {
-            res.status(400).send({ status: false, message: 'password must be present' })
+            res.status(400).send({ status: false, message: 'password is required' })
             return
         }
-
         if (email && password) {
             let User = await UserModel.findOne({ email: email })
             if (!User) {
                 return res.status(400).send({ status: false, msg: "email does not exist" })
             }
             let decryppasss = await bcrypt.compare(password, User.password);
-
             if (decryppasss) {
-                const Token = jwt.sign({
-                    userId: User._id,
-                    iat: Math.floor(Date.now() / 1000), //issue date
-                    exp: Math.floor(Date.now() / 1000) + 30 * 60
-                }, "Group8") //exp date 30*60=30min
-                // res.header('x-api-key', Token)
-
-                res.status(200).send({ status: true, msg: "success", data: { userId: User._id, token: Token } })
+                const token = await jwt.sign({ userId: User._id }, 'Group8', {
+                    expiresIn: "3h"
+                })
+                res.header('x-api-key', token);
+                res.status(200).send({ status: true, msg: "success", data: { userId: User._id, token: token } })
             } else {
-                res.status(400).send({ status: false, Msg: "Invalid password" })
+                res.status(400).send({ status: false, Msg: "Invalid password write correct password" })
             }
         }
-    }
-    catch (err) {
+    } catch (err) {
         res.status(500).send({ status: false, message: err.message })
     }
 }
 
-
 //User Details
-
 const GetUsers = async function (req, res) {
     try {
-        //console.log(req.user)
+        let userId = req.params.userId
         if (req.user.userId != req.params.userId) {
             return res.status(401).send({ status: false, msg: "userId does not match" })
         }
-        let userId = req.params.userId
-        console.log(userId)
         let findUserId = await UserModel.findOne({ _id: userId })
         if (findUserId) {
             res.status(200).send({ status: true, msg: "User Profile details", data: findUserId })
         }
-
     } catch (err) {
         res.staus(500).send({ status: false, msg: err.message })
     }
 }
 
-
-// Update Details
+// Update Details of users
 const updateUser = async function (req, res) {
     try {
         const userId = req.params.userId
         const requestBody = req.body
+        const Id = req.user.userId 
         if (!validObject(userId)) {
             res.status(400).send({ status: false, message: `${userId} is invalid` })
             return
@@ -190,9 +157,7 @@ const updateUser = async function (req, res) {
         if (!userFound) {
             res.status(401).send({ status: false, message: `User does not exist` })
         }
-        // Authorisation
-
-        if (userId.toString() !== req.params.userId) {
+        if (userId !== Id) {
             res.status(401).send({ status: false, message: `user id doesn't match provide valid user id` })
             return
         }
@@ -202,12 +167,10 @@ const updateUser = async function (req, res) {
         }
         let { fname, lname, email, phone } = requestBody;
         let updateUser = {};
-        if (isValid(fname)) {
-            updateUser['fname'] = fname
-        }
-        if (isValid(lname)) {
-            updateUser['lname'] = lname
-        }
+
+            updateUser['fname'] = fname 
+            updateUser['lname'] = lname 
+        
         if (isValid(email)) {
             if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email.trim()))) {
                 res.status(400).send({ status: false, message: `Email should be a valid email address` })
@@ -234,7 +197,6 @@ const updateUser = async function (req, res) {
         res.status(500).send({ status: false, msg: error.message });
     }
 }
-
 module.exports.registerUser = registerUser;
 module.exports.login = login;
 module.exports.GetUsers = GetUsers

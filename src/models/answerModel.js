@@ -16,6 +16,14 @@ const answerSchema = new mongoose.Schema({
         ref: 'Question',
         required: true
     },
+    deletedAt: {
+        type: Date,//when the document is deleted
+        default: null
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    }
 
 }, { timestamps: true })
 

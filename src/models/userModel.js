@@ -4,8 +4,8 @@ const userSchema = new mongoose.Schema({
 
     fname: {
         type: String,
-        required: true
-        
+        required: true,
+        trim: true
     },
     lname: {
         type: String,
@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         trim: true,
         required: true// encrypted password
+    },
+    creditScore: {
+        type:Number, 
+        required: true
     }
     
 }, { timestamps: true })

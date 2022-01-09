@@ -24,7 +24,7 @@ router.delete('/deleteQuestions/:questionId',Middleware.Auth,questionController.
 //answer API
 
 router.post('/answer', Middleware.Auth,AnswerController.createAnswer)
-router.get('/answerDetails/:questionId',AnswerController.getAllAnswers)
+router.get('/answerDetails/:questionId',AnswerController.getAnswerById)
 router.put('/answer/:answerId', Middleware.Auth, AnswerController.updateAnswer)
-//router.delete('/answer/:answerId', auth.userAuth, answerController.delAns)
+router.delete('/answer/:answerId', Middleware.Auth, AnswerController.deleteAnswers)
 module.exports = router;
