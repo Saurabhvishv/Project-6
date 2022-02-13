@@ -14,12 +14,12 @@ const questionSchema = new mongoose.Schema({
     
 
     askedBy: {
-        type:mongoose.Schema.Types.ObjectId, //a referenec to user collection.
+        type:mongoose.Schema.Types.ObjectId,
         ref:'ProductUser',
         required: true
     },
     deletedAt: {
-        type: Date,//when the document is deleted
+        type: Date,
         default: null
     },
     isDeleted: {
@@ -29,4 +29,4 @@ const questionSchema = new mongoose.Schema({
     
 }, { timestamps: true })
 
-module.exports = mongoose.model('Question', questionSchema, 'question')
+module.exports = mongoose.model('Question', questionSchema)

@@ -100,7 +100,7 @@ const getQuestionById = async function (req, res) {
         if (!isValidObjectId(questionId)) {
             return res.status(400).send({ status: false, Message: "Please provide vaild question ID" })
         }
-        const question = await questionModel.findOne({ _id: questionId })
+        const question = await questionModel.findOne({ _id: questionId,isDeleted: false })
         if (!question) {
             res.status(404).send({ status: false, Message: "No question found with provided Question ID" })
         }
@@ -128,7 +128,7 @@ const updateQuestionById = async function (req, res) {
         const _id = req.params.questionId
         const requestBody = req.body;
         const userIdFromToken = req.user.userId
-        console.log(userIdFromToken)
+        
         if (!isValidRequestBody(requestBody)) {
             res.status(400).send({ status: false, message: "Please provide valid data in request body" })
             return
@@ -143,16 +143,12 @@ const updateQuestionById = async function (req, res) {
         const question = await questionModel.findOne({ _id })
         if (!(question)) {
             return res.status(404).send({ status: false, msg: "No question present" })
-        } console.log(question.askedBy.toString())
+        } 
         if (!(userIdFromToken == question.askedBy.toString())) {
             return res.status(401).send({ status: false, msg: `${userIdFromToken}You are  not authorized to update this question` })
         }
         let { description, tag } = requestBody
         let updateData = {}
-        if (!isValid(tag)) {
-            res.status(400).send({ status: false, message: "tag should have some value" })
-            return
-        }
         updateData['tag'] = tag
         if (!isValid(description)) {
             res.status(400).send({ status: false, message: "description should have some value" })

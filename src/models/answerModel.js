@@ -17,7 +17,7 @@ const answerSchema = new mongoose.Schema({
         required: true
     },
     deletedAt: {
-        type: Date,//when the document is deleted
+        type: Date,
         default: null
     },
     isDeleted: {

@@ -17,86 +17,83 @@ const isValidObjectId = function (objectId) {
 }
 
 //Api 1 create answer
-const createAnswer = async function (req, res) {
+const createAnswer = async function(req, res) {
     try {
+        const userId = req.body.answeredBy
+        const questionId = req.body.questionId
+        const tokenId = req.user.userId
         const requestBody = req.body
-        const userId = requestBody.answeredBy
-        const quesId = req.body.questionId
-        const userIdFromToken = req.user.userId
-        const { answeredBy, questionId, text } = requestBody
+
         if (!isValidRequestBody(requestBody)) {
-            return res.status(400).send({ status: false, Message: "Invalid request params, please provide question details" })
+            return res.status(400).send({ status: false, message: "Please provide data for successful Answer create for Particular Question" });
         }
-        if (!(isValid(answeredBy))) {
-            return res.status(400).send({ status: false, msg: "provide valid object Id for asked by" })
+        if (!isValid(userId)) {
+            return res.status(400).send({ status: false, message: "Please provide answeredBy or answeredBy field" });
         }
-        if (!(isValid(quesId))) {
-            return res.status(400).send({ status: false, msg: "provide valid object Id for asked by" })
+        if (!isValidObjectId(userId)) {
+            return res.status(400).send({ status: false, msg: "answeredBy UserId is not valid" })
         }
-        if (userIdFromToken != userId) {
-            return res.status(401).send({ status: false, msg: "userId does not match by askedby given ID" })
-        }
-        if (userIdFromToken == quesId) {
-            return res.status(401).send({ status: false, msg: "questionId does not match by askedby given ID" })
-        }
-        if (!isValidObjectId(answeredBy)) {
-            return res.status(400).send({ status: false, Message: "Please provide vaild askedBy ID" })
+        if (!isValid(questionId)) {
+            return res.status(400).send({ status: false, message: "Please provide QuestionId or QuestionId field" });
         }
         if (!isValidObjectId(questionId)) {
-            return res.status(400).send({ status: false, Message: "Please provide vaild askedBy ID" })
+            return res.status(404).send({ status: false, message: "questionId is not valid" })
         }
-        let checkUser = await userModel.findOne({ _id: userId })
-        if (!checkUser) {
-            return res.status(400).send({ status: false, msg: "The user for this ID does not exist" })
+        if (!(userId == tokenId)) {
+            return res.status(401).send({ status: false, message: `Unauthorized access! Owner info doesn't match` });
         }
-        if (userIdFromToken == userId) {
-            if (userIdFromToken !== quesId) {
-                let userQuestion = await questionModel.findOne({ _id: questionId })
-                if (!(userId == userQuestion.askedBy)) {
-                    if (!isValid(text)) {
-                        return res.status(400).send({ status: false, Message: "Please provide description" })
-                    }
-                    if (!isValid(questionId)) {
-                        return res.status(400).send({ status: false, Message: "Please provide tags" })
-                    }
-                    if (!(isValid(answeredBy))) {
-                        return res.status(400).send({ status: false, msg: "provide valid askedBy" })
-                    }
-                    await userModel.findOneAndUpdate({ _id: userId },{$inc:{creditScore: +200}}, { new: true })
-                    let question = await answerModel.create(requestBody)
-                    return res.status(200).send({ status: false, Message: "Question created successfully", data: question })
-                } else { return res.status(401).send({ status: false, Message: "user not give answer to own question" }) }
-            } else { return res.status(401).send({ status: false, Message: "Unauthorized attemped! can't post question using this ID" }) }
+        const user = await userModel.findById(userId)
+        if (!user) {
+            res.status(404).send({ status: false, msg: "AnswerBy User Id not found in DB" })
+        }
+        const questiondetail = await questionModel.findOne({ _id: questionId, isDeleted: false })
+        if (!questiondetail) {
+            return res.status(400).send({ status: false, message: "question don't exist or it's deleted" })
+        }
+        let { text } = requestBody
+        if (!isValid(text)) {
+            return res.status(400).send({ status: false, message: "Please provide text detail to create answer " });
+        }
+        let userScoredata = await questionModel.findOne({ _id: questionId })
+        if (!(req.body.answeredBy == userScoredata.askedBy)) {
+            let increaseScore = await userModel.findOneAndUpdate({ _id: userId }, { $inc: { creditScore: +200 } })
+            const data = { answeredBy: userId, text, questionId }
+            const answerData = await answerModel.create(data);
+            let totalData = { answerData, increaseScore }
+            return res.status(200).send({ status: false, message: "User Credit Score updated ", data: totalData });
         } else {
-            return res.status(401).send({ status: false, Message: "Unauthorized access attemped! can't post question using this ID" })
+            return res.status(400).send({ status: true, message: 'Sorry , You cannot Answer Your Own Question' });
         }
-    } catch (error) {
-        return res.status(500).send({ status: false, message: error.message });
+    } catch (err) {
+        console.log(err)
+        return res.status(500).send({ status: false, msg: err.message });
     }
 }
 
 //API2 get answer details
-const getAnswerById = async function (req, res) {
+const getAnswerById = async function(req, res) {
     try {
-        const quesId = req.params.questionId
-        if (!isValidObjectId(quesId)) {
+        const qId = req.params.questionId;
+        if (!isValidObjectId(qId)) {
             return res.status(400).send({ status: false, Message: "Please provide vaild question ID" })
         }
-        const question = await answerModel.findOne({ _id: quesId, isDeleted: false })
+        const question = await questionModel.findOne({ _id: qId, isDeleted: false })
+
         if (!question) {
-            res.status(404).send({ status: false, Message: "No question found with provided Question ID" })
+            return res.status(404).send({ status: false, Message: "No question found with provided ID" })
         }
-        const answer = await questionModel.find({ questionId: quesId, isDeleted: false })
+        const answer = await answerModel.find({ questionId: qId, isDeleted: false }).select({ answerdBy: 1, questionId: 1, text: 1 })
+
         if (answer.length == 0) {
-            const AnswerData = "No answer is present"
-            const questionList = question
-            const data = { questionList, AnswerData }
-            return res.status(200).send({ status: true, message: "questionlist ", data: data })
+            return res.status(404).send({ status: true, Message: "No answers found for this question" })
         }
-        const AnswerData = answer
-        const questionList = question
-        const data = { questionList, AnswerData }
-        return res.status(200).send({ status: true, message: "question answer  list", data: data })
+        var ansArr = {
+            description: question.description,
+            tag: question.tag,
+            askedBy: question.askedBy,
+            answers: answer
+        }
+        return res.status(200).send({ status: true, data: ansArr })
     } catch (error) {
         return res.status(500).send({ status: false, message: error.message });
     }
